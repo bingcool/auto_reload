@@ -67,7 +67,7 @@ class AutoReload
                 }
                 else if ($ev['mask'] == IN_CREATE or $ev['mask'] == IN_DELETE or $ev['mask'] == IN_MODIFY or $ev['mask'] == IN_MOVED_TO or $ev['mask'] == IN_MOVED_FROM)
                 {
-                    $fileType = strstr($ev['name'], '.');
+                    $fileType = strrchr($ev['name'], '.');
                     //非重启类型
                     if (!isset($this->reloadFileTypes[$fileType]))
                     {
@@ -174,7 +174,7 @@ class AutoReload
                 $this->watch($path, false);
             }
             //检测文件类型
-            $fileType = strstr($f, '.');
+            $fileType = strrchr($f, '.');
             if (isset($this->reloadFileTypes[$fileType]))
             {
                 $wd = inotify_add_watch($this->inotify, $path, $this->events);
