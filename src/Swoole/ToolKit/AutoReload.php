@@ -15,21 +15,23 @@ class AutoReload
     protected $pid;
 
     protected $reloadFileTypes = array('.php' => true);
+
     protected $watchFiles = array();
-    protected $afterNSeconds = 10;
+
+    public $afterNSeconds = 10;
 
     /**
      * 默认是不重启的
      */
     protected $reloading = false;
-
+    // 默认的监听事件类型
     protected $events = IN_MODIFY | IN_DELETE | IN_CREATE | IN_MOVE;
 
     /**
      * 根目录
      * @var array
      */
-    protected $rootDirs = array();
+    protected $rootDirs = [];
 
     function putLog($log)
     {
@@ -43,7 +45,16 @@ class AutoReload
      */
     function __construct($serverPid)
     {
-        $this->pid = $serverPid;
+
+        if(is_string($serverPid)) {
+            $content = file_get_contents($serverPid);
+            $this->pid = intval($content);
+        }else if(is_int($serverPid)) {
+            $this->pid = $serverPid;
+        }else {
+            throw new NotFound("$serverPid=".$serverPid." is error,must be set the master progress pid_log same as swoole setted or pid");
+        }
+        
         if (posix_kill($serverPid, 0) === false)
         {
             throw new NotFound("Process#$serverPid not found.");
@@ -58,28 +69,31 @@ class AutoReload
                 return;
             }
 
-            foreach($events as $ev)
+            if (!$this->reloading)
             {
-                if ($ev['mask'] == IN_IGNORED)
+                foreach($events as $ev)
                 {
-                    continue;
-                }
-                else if ($ev['mask'] == IN_CREATE or $ev['mask'] == IN_DELETE or $ev['mask'] == IN_MODIFY or $ev['mask'] == IN_MOVED_TO or $ev['mask'] == IN_MOVED_FROM)
-                {
-                    $fileType = strrchr($ev['name'], '.');
-                    //非重启类型
-                    if (!isset($this->reloadFileTypes[$fileType]))
+                    if ($ev['mask'] == IN_IGNORED)
                     {
                         continue;
                     }
-                }
-                //正在reload，不再接受任何事件，冻结10秒
-                if (!$this->reloading)
-                {
-                    $this->putLog("after 10 seconds reload the server");
-                    //有事件发生了，进行重启
-                    swoole_timer_after($this->afterNSeconds * 1000, array($this, 'reload'));
-                    $this->reloading = true;
+                    else if ($ev['mask'] == IN_CREATE or $ev['mask'] == IN_DELETE or $ev['mask'] == IN_MODIFY or $ev['mask'] == IN_MOVED_TO or $ev['mask'] == IN_MOVED_FROM)
+                    {
+                        $fileType = strrchr($ev['name'], '.');
+                        //非重启类型
+                        if (!isset($this->reloadFileTypes[$fileType]))
+                        {
+                            continue;
+                        }
+                    }
+                    //正在reload，不再接受任何事件，冻结10秒
+                    if (!$this->reloading)
+                    {
+                        $this->putLog("after ".$this->afterNSeconds." seconds reload the server");
+                        //有事件发生了，进行重启
+                        swoole_timer_after($this->afterNSeconds * 1000, array($this, 'reload'));
+                        $this->reloading = true;
+                    }
                 }
             }
         });
