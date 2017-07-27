@@ -19,11 +19,11 @@ class AutoReload
     protected $afterNSeconds = 10;
 
     /**
-     * 正在reload
+     * 默认是不重启的
      */
     protected $reloading = false;
 
-    protected $events;
+    protected $events = IN_MODIFY | IN_DELETE | IN_CREATE | IN_MOVE;
 
     /**
      * 根目录
@@ -50,7 +50,6 @@ class AutoReload
         }
 
         $this->inotify = inotify_init();
-        $this->events = IN_MODIFY | IN_DELETE | IN_CREATE | IN_MOVE;
 
         swoole_event_add($this->inotify, function ($ifd) {
             $events = inotify_read($this->inotify);
@@ -58,7 +57,7 @@ class AutoReload
             {
                 return;
             }
-            var_dump($events);
+
             foreach($events as $ev)
             {
                 if ($ev['mask'] == IN_IGNORED)
