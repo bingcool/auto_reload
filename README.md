@@ -14,14 +14,18 @@ php daemon.php
 
 运行程序
 ```php
-require __DIR__.'/src/Swoole/ToolKit/AutoReload.php';
+require __DIR__.'/src/Swoole/ToolKit/SuAutoReload.php';
+$sukit = new Swoole\ToolKit\SuAutoReload();
+$sukit->afterNSeconds = 5;
+$sukit->watch('/home/wwwroot/default');
+$sukit->run();
+//两者不能共存，只能取其一，建议第一个，因为是经过优化的，与swoole的启动不存在关系，独立功能
+//无需按顺序先启动swoole
 
-//设置服务器程序的PID
-$kit = new Swoole\ToolKit\AutoReload(2914);
-//设置要监听的源码目录
-$kit->watch(__DIR__.'/tests');
-//监听后缀为.php的文件
-$kit->addFileType('.php');
-$kit->run();
+// require __DIR__.'/src/Swoole/ToolKit/AutoReload.php';
+// $kit = new Swoole\ToolKit\AutoReload();
+// $kit->afterNSeconds = 5;
+// $kit->watch('/home/wwwroot/default');
+// $kit->run();
 
 ```
