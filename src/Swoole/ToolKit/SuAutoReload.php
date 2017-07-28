@@ -3,7 +3,7 @@ namespace Swoole\ToolKit;
 
 require __DIR__.'/NotFound.php';
 
-class AutoReload
+class SuAutoReload
 {
     /**
      * @var resource
@@ -31,7 +31,7 @@ class AutoReload
      */
     protected $rootDirs = [];
 
-    function putLog($log)
+    private function putLog($log)
     {
         $_log = "[".date('Y-m-d H:i:s')."]\t".$log."\n";
         echo $_log;
@@ -41,25 +41,8 @@ class AutoReload
      * @param $serverPid
      * @throws NotFound
      */
-    function __construct($serverPid=null)
+    public function __construct()
     {
-
-        if(is_string($serverPid)) {
-            $content = file_get_contents($serverPid);
-            $this->pid = intval($content);
-        }else if(is_int($serverPid)) {
-            $this->pid = $serverPid;
-        }else{
-            $this->pid = intval(shell_exec("netstat -ntlp | grep 9501 | awk '{print $7}' | awk -F '/' '{print $1}'"));
-            if(!is_int($this->pid)) {
-                throw new NotFound("$serverPid=".$serverPid." is error,must be set the master progress pid_log same as swoole setted or pid");
-            }
-        }
-        
-        if (posix_kill($serverPid, 0) === false)
-        {
-            throw new NotFound("Process#$serverPid not found.");
-        }
 
         $this->inotify = inotify_init();
 
@@ -90,6 +73,19 @@ class AutoReload
                     //正在reload，不再接受任何事件，冻结10秒
                     if (!$this->reloading)
                     {
+                        $this->pid = intval(shell_exec("netstat -ntlp | grep 9501 | awk '{print $7}' | awk -F '/' '{print $1}'"));
+                        
+                        if(!is_int($this->pid) || !$this->pid) {
+                                $this->putLog("swoole已经停止....");
+                                $this->putLog("请启动swoole");
+                                return;
+                                // $this->putLog("正在启动swoole");
+                                // exec("php /home/wwwroot/default/auto_reload/server.php > /dev/null");
+                                // $this->pid = intval(file_get_contents('/home/wwwroot/default/auto_reload/server.pid'));
+                                // $this->putLog("swoole启动成功");
+
+                        }  
+
                         $this->putLog("after ".$this->afterNSeconds." seconds reload the server");
                         //有事件发生了，进行重启
                         swoole_timer_after($this->afterNSeconds * 1000, array($this, 'reload'));
@@ -100,7 +96,7 @@ class AutoReload
         });
     }
 
-    function reload()
+    private function reload()
     {
         $this->putLog("reloading");
         //向主进程发送信号
@@ -114,13 +110,15 @@ class AutoReload
         }
         //继续进行reload
         $this->reloading = false;
+        // 重置为null
+        $this->pid = null;
     }
 
     /**
      * 添加文件类型
      * @param $type
      */
-    function addFileType($type)
+    public function addFileType($type)
     {
         $type = trim($type, '.');
         $this->reloadFileTypes['.' . $type] = true;
@@ -130,7 +128,7 @@ class AutoReload
      * 添加事件
      * @param $inotifyEvent
      */
-    function addEvent($inotifyEvent)
+    public function addEvent($inotifyEvent)
     {
         $this->events |= $inotifyEvent;
     }
@@ -138,7 +136,7 @@ class AutoReload
     /**
      * 清理所有inotify监听
      */
-    function clearWatch()
+    private function clearWatch()
     {
         foreach($this->watchFiles as $wd)
         {
@@ -153,7 +151,7 @@ class AutoReload
      * @return bool
      * @throws NotFound
      */
-    function watch($dir, $root = true)
+    public function watch($dir, $root = true)
     {
         //目录不存在
         if (!is_dir($dir))
@@ -199,7 +197,7 @@ class AutoReload
         return true;
     }
 
-    function run()
+    public function run()
     {
         swoole_event_wait();
     }
